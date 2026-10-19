@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  // cacheComponents + partialPrefetching tee the hydration stream and never
+  // finish it, so the page stays as static HTML and clicks do nothing.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   turbopack: {
     rules: {
       "*.css": {
