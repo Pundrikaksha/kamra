@@ -1,0 +1,9 @@
+# Firebase App Hosting. Demo mode works with no secrets.
+# For live search, set GEMINI_API_KEY in the App Hosting environment
+# (and optionally GOOGLE_CSE_KEY and GOOGLE_CSE_CX). Do not commit key values.
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 40
