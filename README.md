@@ -81,3 +81,7 @@ The `Dockerfile` builds Next.js and listens on port `8080`. Set `GEMINI_API_KEY`
 - Religion and caste are not fields, even if someone types them.
 
 Risk badges are hints, not verification. Kamra is not a lawyer and not a broker.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
