@@ -204,10 +204,11 @@ describe("draft approval gate", () => {
 describe("rate limit", () => {
   it("blocks the next call after the limit", () => {
     const limiter = createRateLimiter(2, 10_000)
-    expect(limiter.check("1.2.3.4", 1_000).ok).toBe(true)
-    expect(limiter.check("1.2.3.4", 1_100).ok).toBe(true)
-    expect(limiter.check("1.2.3.4", 1_200).ok).toBe(false)
-    expect(limiter.check("5.6.7.8", 1_200).ok).toBe(true)
+    // Add false for the new skipLimit parameter in check
+    expect(limiter.check("1.2.3.4", false, 1_000).ok).toBe(true)
+    expect(limiter.check("1.2.3.4", false, 1_100).ok).toBe(true)
+    expect(limiter.check("1.2.3.4", false, 1_200).ok).toBe(false)
+    expect(limiter.check("5.6.7.8", false, 1_200).ok).toBe(true)
   })
 })
 

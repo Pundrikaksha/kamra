@@ -85,3 +85,6 @@ Risk badges are hints, not verification. Kamra is not a lawyer and not a broker.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## PayPal (built during the hackathon, Nov 2026)
+Kamra M1 introduces PayPal support for purchasing the "Kamra Pass". This sets an HTTP-only signed cookie using `KAMRA_SESSION_SECRET` allowing unlimited searches and removing quota restrictions. The implementation features a full mock-mode for testing environments where API keys are omitted.

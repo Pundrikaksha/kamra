@@ -5,6 +5,7 @@ import { clientIp, apiLimiter } from "@/lib/rate-limit"
 import { clampUserText } from "@/lib/sanitize"
 import { sanitizeRequirement } from "@/lib/requirement"
 import type { Lang, Requirement } from "@/lib/types"
+import { hasKamraPass } from "@/lib/auth"
 
 export function jsonError(status: number, code: string, message: string, extra?: Record<string, unknown>) {
   return Response.json({ error: code, message, ...extra }, { status })
@@ -12,7 +13,10 @@ export function jsonError(status: number, code: string, message: string, extra?:
 
 export async function guard(request: Request): Promise<Response | null> {
   await connection()
-  const limit = apiLimiter.check(clientIp(request))
+
+  const hasPass = await hasKamraPass()
+  const limit = apiLimiter.check(clientIp(request), hasPass)
+
   if (!limit.ok) {
     return jsonError(429, "rate_limited", "Too many searches from this network. Wait a few minutes and try again.", {
       retryAfterMs: limit.retryAfterMs,
