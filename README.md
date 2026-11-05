@@ -93,3 +93,7 @@ Kamra M2 introduces additional features building upon the PayPal integration:
 - **Scam Guard:** Uses Gemini (or rule-based fallback) to analyze listing details and owner interactions, assigning a risk score out of 100.
 - **Protected Deposit Agent:** For low-risk listings, Kamra proposes a refundable token deposit to secure a visit, held as a PayPal Authorization. Funds are only captured if you verify the visit, or voided if you cancel.
 - **PayPal Webhooks:** Webhook handler endpoint to process order approvals, authorizations, captures, and refunds safely.
+
+Kamra M3 introduces post-purchase AI tools:
+- **AI Receipts:** Generates a bilingual (EN/HI) text receipt via Gemini after any successful Pass purchase or Deposit capture.
+- **Dispute/Refund Helper:** Uses Gemini to draft refund requests and wires up a full UI flow invoking the PayPal Refunds API directly.
