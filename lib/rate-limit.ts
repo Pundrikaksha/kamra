@@ -4,7 +4,9 @@ export function createRateLimiter(limit: number, windowMs: number) {
   const hits = new Map<string, Bucket>()
 
   return {
-    check(key: string, now = Date.now()) {
+    check(key: string, skipLimit: boolean = false, now = Date.now()) {
+      if (skipLimit) return { ok: true as const, retryAfterMs: 0 }
+
       const recent = (hits.get(key) ?? []).filter((stamp) => now - stamp < windowMs)
       if (recent.length >= limit) {
         hits.set(key, recent)
@@ -18,7 +20,8 @@ export function createRateLimiter(limit: number, windowMs: number) {
   }
 }
 
-export const apiLimiter = createRateLimiter(16, 10 * 60 * 1000)
+// 4 searches allowed per 10 minutes without pass
+export const apiLimiter = createRateLimiter(4, 10 * 60 * 1000)
 
 export function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for")
