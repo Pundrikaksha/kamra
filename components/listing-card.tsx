@@ -3,23 +3,49 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useEffect, useState } from "react"
 import { getCopy } from "@/lib/i18n"
-import type { Lang, ScoredListing } from "@/lib/types"
+import type { Lang, ScoredListing, Requirement } from "@/lib/types"
+import type { ScamGuardResult } from "@/lib/scam-guard"
 
 export function ListingCard({
   listing,
+  requirement,
   lang,
   saved,
   onContact,
   onSave,
 }: {
   listing: ScoredListing
+  requirement: Requirement
   lang: Lang
   saved: boolean
   onContact: (listing: ScoredListing) => void
   onSave: (listing: ScoredListing) => void
 }) {
   const t = getCopy(lang)
+  const [scamResult, setScamResult] = useState<ScamGuardResult | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetch("/api/scam-guard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listing, requirement }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data.level) {
+          setScamResult(data)
+        }
+      })
+      .catch((err) => console.error("Scam guard check failed", err))
+
+    return () => {
+      active = false
+    }
+  }, [listing, requirement])
+
   const rail =
     listing.riskLevel === "high"
       ? "bg-destructive"
@@ -57,6 +83,14 @@ export function ListingCard({
             {listing.score} {t.fit}
           </Badge>
         </div>
+
+        {scamResult ? (
+          <div className={`rounded-lg px-3 py-2 text-sm leading-5 text-foreground border ${scamResult.level === "high" ? "bg-destructive/10 border-destructive text-destructive" : scamResult.level === "medium" ? "bg-amber-100/50 border-amber-300 text-amber-900" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`}>
+            <span className="font-medium block mb-1">Scam Guard Risk: {scamResult.riskScore}/100</span>
+            {scamResult.reasons.join(", ")}
+          </div>
+        ) : null}
+
         <p className="rounded-lg bg-muted px-3 py-2 text-sm leading-5 text-foreground">
           <span className="font-medium">{t.why}. </span>
           {listing.why}
