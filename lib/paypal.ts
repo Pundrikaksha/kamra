@@ -50,7 +50,7 @@ export async function getAccessToken(): Promise<string> {
   return data.access_token
 }
 
-export async function createOrder(amount: string, currency: string = "USD"): Promise<any> {
+export async function createOrder(amount: string, currency: string = "USD", intent: "CAPTURE" | "AUTHORIZE" = "CAPTURE"): Promise<any> {
   if (isMockMode()) {
     return {
       id: "MOCK_ORDER_ID_" + Math.random().toString(36).substring(7).toUpperCase(),
@@ -69,7 +69,7 @@ export async function createOrder(amount: string, currency: string = "USD"): Pro
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      intent: "CAPTURE",
+      intent,
       purchase_units: [
         {
           amount: {
@@ -83,6 +83,30 @@ export async function createOrder(amount: string, currency: string = "USD"): Pro
 
   if (!response.ok) {
     throw new Error(`Failed to create order: ${await response.text()}`)
+  }
+
+  return response.json()
+}
+
+export async function captureAuthorization(authorizationId: string): Promise<any> {
+  if (isMockMode()) {
+    return {
+      id: "MOCK_CAPTURE_ID_" + Math.random().toString(36).substring(7).toUpperCase(),
+      status: "COMPLETED",
+    }
+  }
+
+  const token = await getAccessToken()
+  const response = await fetch(`${getBaseUrl()}/v2/payments/authorizations/${authorizationId}/capture`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to capture authorization: ${await response.text()}`)
   }
 
   return response.json()

@@ -377,6 +377,7 @@ export function KamraApp() {
               <ListingCard
                 key={listing.id}
                 listing={listing}
+                requirement={requirement}
                 lang={lang}
                 saved={savedIds.includes(listing.id)}
                 onContact={setContact}

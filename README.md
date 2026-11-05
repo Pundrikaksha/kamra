@@ -88,3 +88,8 @@ MIT. See [LICENSE](LICENSE).
 
 ## PayPal (built during the hackathon, Nov 2026)
 Kamra M1 introduces PayPal support for purchasing the "Kamra Pass". This sets an HTTP-only signed cookie using `KAMRA_SESSION_SECRET` allowing unlimited searches and removing quota restrictions. The implementation features a full mock-mode for testing environments where API keys are omitted.
+
+Kamra M2 introduces additional features building upon the PayPal integration:
+- **Scam Guard:** Uses Gemini (or rule-based fallback) to analyze listing details and owner interactions, assigning a risk score out of 100.
+- **Protected Deposit Agent:** For low-risk listings, Kamra proposes a refundable token deposit to secure a visit, held as a PayPal Authorization. Funds are only captured if you verify the visit, or voided if you cancel.
+- **PayPal Webhooks:** Webhook handler endpoint to process order approvals, authorizations, captures, and refunds safely.

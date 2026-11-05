@@ -15,6 +15,8 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { getCopy } from "@/lib/i18n"
 import type { Lang, Requirement, ScoredListing } from "@/lib/types"
+import type { ScamGuardResult } from "@/lib/scam-guard"
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js"
 
 export function ContactSheet({
   listing,
@@ -32,6 +34,45 @@ export function ContactSheet({
   const [approved, setApproved] = useState(false)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [copied, setCopied] = useState(false)
+  const [scamResult, setScamResult] = useState<ScamGuardResult | null>(null)
+
+  const [clientId, setClientId] = useState<string | null>(null)
+  const [mockMode, setMockMode] = useState<boolean>(false)
+
+  const [depositState, setDepositState] = useState<"idle" | "authorizing" | "authorized" | "capturing" | "voiding">("idle")
+  const [authId, setAuthId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch("/api/paypal/config")
+      .then((res) => res.json())
+      .then((data) => {
+        setClientId(data.clientId)
+        setMockMode(data.mockMode)
+      })
+      .catch((err) => console.error("Failed to load paypal config", err))
+  }, [])
+
+  useEffect(() => {
+    if (!listing) return
+    let active = true
+    fetch("/api/scam-guard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listing, requirement }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data.level) {
+          setScamResult(data)
+        }
+      })
+      .catch((err) => console.error("Scam guard check failed", err))
+
+    return () => {
+      active = false
+    }
+  }, [listing, requirement])
+
 
   useEffect(() => {
     if (!listing) return
@@ -132,6 +173,137 @@ export function ContactSheet({
               {copied ? t.copied : t.copy}
             </Button>
           </div>
+          <section>
+            <h3 className="mb-3 font-heading text-lg">Protected Deposit</h3>
+            {scamResult?.level === "high" ? (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm">
+                <p>Deposit blocked due to high scam risk.</p>
+                <p className="mt-1 font-medium">{scamResult.reasons.join(", ")}</p>
+              </div>
+            ) : depositState === "authorized" ? (
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <p className="text-sm font-medium text-emerald-700">Deposit Authorized</p>
+                <p className="text-xs text-muted-foreground">Funds are held safely. Release them after a successful visit, or cancel if the place isn't right.</p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={async () => {
+                      if (!authId) return
+                      setDepositState("capturing")
+                      try {
+                        await fetch("/api/deposit/capture", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ authorizationId: authId }),
+                        })
+                        setDepositState("idle")
+                        setAuthId(null)
+                        alert("Deposit released to owner.")
+                      } catch (err) {
+                        console.error(err)
+                        setDepositState("authorized")
+                      }
+                    }}
+                  >
+                    I visited, release
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={async () => {
+                      if (!authId) return
+                      setDepositState("voiding")
+                      try {
+                        await fetch("/api/deposit/void", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ authorizationId: authId }),
+                        })
+                        setDepositState("idle")
+                        setAuthId(null)
+                        alert("Deposit cancelled.")
+                      } catch (err) {
+                        console.error(err)
+                        setDepositState("authorized")
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : depositState === "authorizing" || depositState === "capturing" || depositState === "voiding" ? (
+               <div className="text-sm text-muted-foreground">Processing...</div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card p-4">
+                <p className="text-sm text-muted-foreground mb-4">Propose a refundable ₹500 token deposit via PayPal to hold this listing. We won't release funds until you approve.</p>
+                {mockMode ? (
+                  <Button
+                    type="button"
+                    className="w-full"
+                    onClick={async () => {
+                      setDepositState("authorizing")
+                      try {
+                        const res = await fetch("/api/deposit/create", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ amount: "500", currency: "INR" }),
+                        })
+                        const order = await res.json()
+                        const authRes = await fetch("/api/deposit/authorize", {
+                           method: "POST",
+                           headers: { "Content-Type": "application/json" },
+                           body: JSON.stringify({ orderId: order.id }),
+                        })
+                        const authData = await authRes.json()
+                        setAuthId(authData.purchase_units[0].payments.authorizations[0].id)
+                        setDepositState("authorized")
+                      } catch (err) {
+                        console.error(err)
+                        setDepositState("idle")
+                      }
+                    }}
+                  >
+                    Simulate Deposit
+                  </Button>
+                ) : clientId && (
+                  <PayPalScriptProvider options={{ clientId, currency: "INR" }}>
+                    <PayPalButtons
+                      createOrder={async () => {
+                        const res = await fetch("/api/deposit/create", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ amount: "500", currency: "INR" }),
+                        })
+                        const order = await res.json()
+                        return order.id
+                      }}
+                      onApprove={async (data) => {
+                        setDepositState("authorizing")
+                        try {
+                          const authRes = await fetch("/api/deposit/authorize", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ orderId: data.orderID }),
+                          })
+                          const authData = await authRes.json()
+                          const id = authData.purchase_units[0].payments.authorizations[0].id
+                          setAuthId(id)
+                          setDepositState("authorized")
+                        } catch (err) {
+                          console.error(err)
+                          setDepositState("idle")
+                        }
+                      }}
+                    />
+                  </PayPalScriptProvider>
+                )}
+              </div>
+            )}
+          </section>
+
           <section>
             <h3 className="mb-3 font-heading text-lg">{t.beforePay}</h3>
             <Checklist lang={lang} city={requirement.city} />
