@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { getCopy } from "@/lib/i18n"
+import { ReceiptDialog } from "@/components/receipt/ReceiptDialog"
 import type { Lang, Requirement, ScoredListing } from "@/lib/types"
 import type { ScamGuardResult } from "@/lib/scam-guard"
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js"
@@ -39,7 +40,8 @@ export function ContactSheet({
   const [clientId, setClientId] = useState<string | null>(null)
   const [mockMode, setMockMode] = useState<boolean>(false)
 
-  const [depositState, setDepositState] = useState<"idle" | "authorizing" | "authorized" | "capturing" | "voiding">("idle")
+  const [depositState, setDepositState] = useState<"idle" | "authorizing" | "authorized" | "capturing" | "voiding" | "captured">("idle")
+  const [captureId, setCaptureId] = useState<string | null>(null)
   const [authId, setAuthId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -192,14 +194,15 @@ export function ContactSheet({
                       if (!authId) return
                       setDepositState("capturing")
                       try {
-                        await fetch("/api/deposit/capture", {
+                        const captureRes = await fetch("/api/deposit/capture", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ authorizationId: authId }),
                         })
-                        setDepositState("idle")
+                        const captureData = await captureRes.json()
+                        setCaptureId(captureData.id)
+                        setDepositState("captured")
                         setAuthId(null)
-                        alert("Deposit released to owner.")
                       } catch (err) {
                         console.error(err)
                         setDepositState("authorized")
@@ -233,6 +236,14 @@ export function ContactSheet({
                     Cancel
                   </Button>
                 </div>
+              </div>
+            ) : depositState === "captured" ? (
+              <div className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
+                <p className="text-sm font-medium text-green-800">Deposit Captured</p>
+                <p className="text-xs text-green-700">The deposit has been released to the owner.</p>
+                {captureId && (
+                   <ReceiptDialog captureId={captureId} amount="500" reason="deposit" lang={lang} />
+                )}
               </div>
             ) : depositState === "authorizing" || depositState === "capturing" || depositState === "voiding" ? (
                <div className="text-sm text-muted-foreground">Processing...</div>

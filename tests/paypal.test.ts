@@ -11,6 +11,7 @@ describe("lib/paypal", () => {
   afterEach(() => {
     process.env = originalEnv
     vi.restoreAllMocks()
+    global.fetch = undefined as any
   })
 
   it("isMockMode should be true if keys are missing", async () => {
@@ -38,6 +39,16 @@ describe("lib/paypal", () => {
     const capture = await captureOrder("MOCK_ORDER_123")
     expect(capture.id).toBe("MOCK_ORDER_123")
     expect(capture.status).toBe("COMPLETED")
+  })
+
+  it("mock mode refunds a mock payment", async () => {
+    delete process.env.PAYPAL_CLIENT_ID
+    delete process.env.PAYPAL_CLIENT_SECRET
+    const { refundPayment } = await import("@/lib/paypal")
+
+    const refund = await refundPayment("MOCK_CAPTURE_123")
+    expect(refund.id).toBe("MOCK_REFUND_ID")
+    expect(refund.status).toBe("COMPLETED")
   })
 
   describe("real mode", () => {
