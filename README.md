@@ -27,6 +27,11 @@ cp .env.example .env.local
 | `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash`. |
 | `GOOGLE_CSE_KEY` | No | Programmable Search JSON API key. Used only together with `GOOGLE_CSE_CX`. |
 | `GOOGLE_CSE_CX` | No | Programmable Search engine id. Restrict the engine to listing sites if you can. Kamra still drops hosts it does not recognise. |
+| `PAYPAL_ENV` | No | `sandbox` or `production`. Defaults to sandbox if not set. |
+| `PAYPAL_CLIENT_ID` | No | PayPal REST app client ID for live testing. |
+| `PAYPAL_CLIENT_SECRET` | No | PayPal REST app client secret for live testing. |
+| `KAMRA_SESSION_SECRET` | No | Used to sign the HTTP-only Kamra Pass cookie. |
+| `PAYPAL_WEBHOOK_ID` | No | PayPal webhook ID for processing events. |
 
 With no key, the app is in **demo mode**. The shortlist is labelled as sample cards.
 
@@ -35,6 +40,15 @@ npm test
 npm run build
 npm start
 ```
+
+### Sandbox testing instructions for Judges
+
+By default, without `PAYPAL_*` environment variables, Kamra runs in a full mock mode. You can test the end-to-end purchasing and deposit flows safely without an actual PayPal account.
+
+To test with a live PayPal sandbox:
+1. Copy `.env.example` to `.env.local`
+2. Provide your own PayPal sandbox test-buyer credentials. Fill out `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox` and `KAMRA_SESSION_SECRET` with valid sandbox values. **Never paste real production credentials.**
+3. Run the app (`npm run dev`) and test purchases via a PayPal sandbox personal test-buyer account.
 
 ## What the app does
 
@@ -87,13 +101,24 @@ Risk badges are hints, not verification. Kamra is not a lawyer and not a broker.
 MIT. See [LICENSE](LICENSE).
 
 ## PayPal (built during the hackathon, Nov 2026)
-Kamra M1 introduces PayPal support for purchasing the "Kamra Pass". This sets an HTTP-only signed cookie using `KAMRA_SESSION_SECRET` allowing unlimited searches and removing quota restrictions. The implementation features a full mock-mode for testing environments where API keys are omitted.
 
-Kamra M2 introduces additional features building upon the PayPal integration:
-- **Scam Guard:** Uses Gemini (or rule-based fallback) to analyze listing details and owner interactions, assigning a risk score out of 100.
-- **Protected Deposit Agent:** For low-risk listings, Kamra proposes a refundable token deposit to secure a visit, held as a PayPal Authorization. Funds are only captured if you verify the visit, or voided if you cancel.
-- **PayPal Webhooks:** Webhook handler endpoint to process order approvals, authorizations, captures, and refunds safely.
+This project contains features built exclusively during the hackathon:
 
-Kamra M3 introduces post-purchase AI tools:
-- **AI Receipts:** Generates a bilingual (EN/HI) text receipt via Gemini after any successful Pass purchase or Deposit capture.
-- **Dispute/Refund Helper:** Uses Gemini to draft refund requests and wires up a full UI flow invoking the PayPal Refunds API directly.
+- **M1 (Kamra Pass):** PayPal server lib + Orders v2 + Kamra Pass + mock mode + signed-cookie entitlement.
+- **M2 (Protected Deposit):** Scam Guard + protected token deposit AUTHORIZE/capture/void + webhooks.
+- **M3 (AI Post-Purchase Tools):** AI bilingual receipt + refund/dispute helper via PayPal Refunds API.
+
+### Architecture Overview
+
+```mermaid
+flowchart LR
+    A[Renter Chat] --> B[Gemini Shortlist]
+    B --> C[Scam Guard]
+    C --> D{Human-approved}
+    D -->|Kamra Pass| E[PayPal Orders v2]
+    D -->|Visit Token| F[AUTHORIZE Deposit]
+    F --> G[Capture/Void]
+    E --> H[AI Receipt]
+    G --> H
+    H --> I[Refund Helper]
+```
