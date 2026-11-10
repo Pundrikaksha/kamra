@@ -6,49 +6,50 @@ You describe what you need in English, Hindi, or Hinglish. Kamra turns that into
 
 Links always go to the original site. Kamra does not scrape listing sites and does not keep a database of copied ads. Demo mode, used when no API key is set, shows sample cards written for this app.
 
-## Run locally
+## Run steps
 
-```bash
-npm install
-npm run dev
-```
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000).
+2. **Environment Variables:**
+   Copy `.env.example` to `.env.local` only if you want live search or real sandbox testing.
+   ```bash
+   cp .env.example .env.local
+   ```
 
-Copy `.env.example` to `.env.local` only if you want live search:
+   | Variable | Required | Purpose |
+   |---|---|---|
+   | `GEMINI_API_KEY` | For live search | Gemini API key. Stays on the server. |
+   | `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash`. |
+   | `GOOGLE_CSE_KEY` | No | Programmable Search JSON API key. Used only together with `GOOGLE_CSE_CX`. |
+   | `GOOGLE_CSE_CX` | No | Programmable Search engine id. Restrict the engine to listing sites if you can. Kamra still drops hosts it does not recognise. |
+   | `PAYPAL_ENV` | No | `sandbox` or `production`. Defaults to sandbox if not set. |
+   | `PAYPAL_CLIENT_ID` | No | PayPal REST app client ID for live testing. |
+   | `PAYPAL_CLIENT_SECRET` | No | PayPal REST app client secret for live testing. |
+   | `KAMRA_SESSION_SECRET` | No | Used to sign the HTTP-only Kamra Pass cookie. |
+   | `PAYPAL_WEBHOOK_ID` | No | PayPal webhook ID for processing events. |
 
-```bash
-cp .env.example .env.local
-```
+3. **Mock Mode vs Sandbox:**
+   By default, without any API keys or `PAYPAL_*` variables, Kamra runs in a full **mock/demo mode**. You can test the end-to-end purchasing and deposit flows safely without an actual PayPal account. The shortlist is labelled as sample cards.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `GEMINI_API_KEY` | For live search | Gemini API key. Stays on the server. |
-| `GEMINI_MODEL` | No | Defaults to `gemini-2.5-flash`. |
-| `GOOGLE_CSE_KEY` | No | Programmable Search JSON API key. Used only together with `GOOGLE_CSE_CX`. |
-| `GOOGLE_CSE_CX` | No | Programmable Search engine id. Restrict the engine to listing sites if you can. Kamra still drops hosts it does not recognise. |
-| `PAYPAL_ENV` | No | `sandbox` or `production`. Defaults to sandbox if not set. |
-| `PAYPAL_CLIENT_ID` | No | PayPal REST app client ID for live testing. |
-| `PAYPAL_CLIENT_SECRET` | No | PayPal REST app client secret for live testing. |
-| `KAMRA_SESSION_SECRET` | No | Used to sign the HTTP-only Kamra Pass cookie. |
-| `PAYPAL_WEBHOOK_ID` | No | PayPal webhook ID for processing events. |
+4. **Testing and Building:**
+   Ensure everything works before running:
+   ```bash
+   npm test
+   npm run build
+   ```
 
-With no key, the app is in **demo mode**. The shortlist is labelled as sample cards.
-
-```bash
-npm test
-npm run build
-npm start
-```
-
-### Sandbox testing instructions for Judges
-
-By default, without `PAYPAL_*` environment variables, Kamra runs in a full mock mode. You can test the end-to-end purchasing and deposit flows safely without an actual PayPal account.
-
-To test with a live PayPal sandbox:
-1. Copy `.env.example` to `.env.local`
-2. Provide your own PayPal sandbox test-buyer credentials. Fill out `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox` and `KAMRA_SESSION_SECRET` with valid sandbox values. **Never paste real production credentials.**
-3. Run the app (`npm run dev`) and test purchases via a PayPal sandbox personal test-buyer account.
+5. **Sandbox Testing Instructions for Judges:**
+   To test with a live PayPal sandbox:
+   - Provide your own PayPal sandbox test-buyer credentials in `.env.local`.
+   - Fill out `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox`, and `KAMRA_SESSION_SECRET` with valid sandbox values. **Never paste real production credentials.**
+   - Start the app:
+     ```bash
+     npm run dev
+     ```
+   - Open [http://localhost:3000](http://localhost:3000). Test purchases via a PayPal sandbox personal test-buyer account.
 
 ## What the app does
 
@@ -104,21 +105,20 @@ MIT. See [LICENSE](LICENSE).
 
 This project contains features built exclusively during the hackathon:
 
-- **M1 (Kamra Pass):** PayPal server lib + Orders v2 + Kamra Pass + mock mode + signed-cookie entitlement.
-- **M2 (Protected Deposit):** Scam Guard + protected token deposit AUTHORIZE/capture/void + webhooks.
-- **M3 (AI Post-Purchase Tools):** AI bilingual receipt + refund/dispute helper via PayPal Refunds API.
+- Kamra Pass via Orders v2 + JS SDK
+- Scam Guard
+- protected deposit AUTHORIZE -> capture/void
+- webhooks
+- AI bilingual receipts
+- refund/dispute helper via Refunds API
+- mock mode
 
 ### Architecture Overview
 
 ```mermaid
 flowchart LR
-    A[Renter Chat] --> B[Gemini Shortlist]
-    B --> C[Scam Guard]
-    C --> D{Human-approved}
-    D -->|Kamra Pass| E[PayPal Orders v2]
-    D -->|Visit Token| F[AUTHORIZE Deposit]
-    F --> G[Capture/Void]
-    E --> H[AI Receipt]
-    G --> H
-    H --> I[Refund Helper]
+    A[browser] -->|Next.js API routes| B[lib/paypal.ts]
+    A -->|Next.js API routes| C[Gemini]
+    B --> D[PayPal sandbox]
+    D -->|webhooks| B
 ```
